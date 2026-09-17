@@ -18,6 +18,8 @@ public class UDPServer {
                         request.getLength(), request.getAddress(), request.getPort());
 
                 aSocket.send(reply);
+                System.out.println("Recebido de " + request.getAddress() + ":" + request.getPort()
+        + " -> " + new String(request.getData(), 0, request.getLength()));
             }
         } catch (SocketException e) { System.out.println("Socket: " + e.getMessage());
         } catch (IOException e)     { System.out.println("IO: " + e.getMessage());
