@@ -8,29 +8,22 @@ public class UDPClient {
 
         try {
             aSocket = new DatagramSocket();
+
+            byte[] m = "vou enviar esta mensagem ao servidor".getBytes();
             InetAddress aHost = InetAddress.getByName("localhost");
             int serverPort = 6789;
 
-            BufferedReader teclado = new BufferedReader(new InputStreamReader(System.in));
+            DatagramPacket request = new DatagramPacket(m, m.length, aHost, serverPort);
 
-            while (true) {
-                System.out.print("Mensagem a enviar (ou 'sair' para terminar): ");
-                String texto = teclado.readLine();
+            aSocket.send(request);
 
-                if (texto == null || texto.equalsIgnoreCase("sair")) {
-                    break;
-                }
+            byte[] buffer = new byte[1000];
 
-                byte[] m = texto.getBytes();
-                DatagramPacket request = new DatagramPacket(m, m.length, aHost, serverPort);
-                aSocket.send(request);
+            DatagramPacket reply = new DatagramPacket(buffer, buffer.length);
 
-                byte[] buffer = new byte[1000];
-                DatagramPacket reply = new DatagramPacket(buffer, buffer.length);
-                aSocket.receive(reply);
+            aSocket.receive(reply);
 
-                System.out.println("Reply: " + new String(reply.getData(), 0, reply.getLength()));
-            }
+            System.out.println("Reply: " + new String(reply.getData()));
 
         } catch (SocketException e) { System.out.println("Socket: " + e.getMessage());
         } catch (IOException e)     { System.out.println("IO: " + e.getMessage());
