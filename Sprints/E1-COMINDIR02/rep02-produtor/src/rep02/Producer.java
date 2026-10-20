@@ -45,7 +45,7 @@ public class Producer {
                 String line = sc.nextLine().trim();
                 if (line.isEmpty()) continue;
                 if (line.equalsIgnoreCase("sair")) break;
-                String[] p = line.split("\s+");
+                String[] p = line.split("\\s+");
                 try {
                     if (p[0].equalsIgnoreCase("rajada") || p[0].equalsIgnoreCase("rajada-quente")) {
                         burst(p, p[0].equalsIgnoreCase("rajada-quente"), ps, partitioner, rnd);

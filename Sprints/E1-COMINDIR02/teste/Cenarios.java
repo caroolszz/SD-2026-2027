@@ -110,6 +110,7 @@ public class Cenarios {
         Proc r = spawn("replica" + id, wd, CP_REP, "rep02.PartitionReplica", List.of(props), id, parts, "" + api);
         String[] ks = parts.split(",");
         r.waitCount("subscreve", ks.length, 5000);
+        sleep(1500);   // a linha "subscreve" é escrita antes de o pedido pubsub/sub estar ativo no nó
         return r;
     }
 
@@ -117,6 +118,7 @@ public class Cenarios {
         Proc l = spawn("lider" + k, wd, CP_LID, "rep02.PartitionLeader", List.of(props),
                 "" + k, "" + n, addr, "http://127.0.0.1:" + api + "/api/v0");
         l.waitFor("anuncia", 5000);
+        sleep(1500);   // idem: a subscrição de rep02-in-p<k> só fica ativa depois de "anuncia"
         return l;
     }
 
@@ -204,7 +206,7 @@ public class Cenarios {
     }
 
     static String check(int n, Path folder) throws Exception {
-        Proc c = spawn("check", folder, CP_REP, "rep02.PartitionCheck", List.of(), "" + n, folder.toString());
+        Proc c = spawn("check", folder, CP_REP, "rep02.PartitionCheck", List.of(), "" + n, folder.toString(), n == 1 ? "3" : "2");   // com N = 1 as 3 réplicas guardam p0
         c.p.waitFor();
         return c.text();
     }

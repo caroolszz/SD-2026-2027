@@ -83,7 +83,7 @@ public class PartitionLeader {
                     s.setSoTimeout(Wire.T_TCP_MS);
                     String pedido = in.readLine();                  // bloqueia até chegar o pedido
                     serve(pedido, s, out, file, semFim);
-                } catch (IOException e) {
+                } catch (IOException | RuntimeException e) {         // RuntimeException: linha estragada no ficheiro
                     System.out.println("Recuperação interrompida: " + e.getMessage());
                 }
             }

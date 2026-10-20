@@ -12,12 +12,13 @@ public class PartitionCheck {
     static final Pattern REPLICA = Pattern.compile("replica-(\\d+)-p(\\d+)\\.txt");
 
     public static void main(String[] args) throws IOException {
-        if (args.length != 2) {
-            System.out.println("Uso: PartitionCheck <N> <pasta>");
+        if (args.length < 2 || args.length > 3) {
+            System.out.println("Uso: PartitionCheck <N> <pasta> [R]");
             return;
         }
         int n = Integer.parseInt(args[0]);
         Path dir = Paths.get(args[1]);
+        int rEsperado = args.length > 2 ? Integer.parseInt(args[2]) : 2;   // fator de replicação esperado
         Partitioner part = new Partitioner(n);
         boolean allOk = true;
         long total = 0, sum = 0;
@@ -39,7 +40,6 @@ public class PartitionCheck {
             System.out.println("  chave de partição: " + (wrongKey == 0 ? "OK" : "FALHA (" + wrongKey + " registos de outra partição)"));
             System.out.println("  seq 1.." + recs.size() + " sem saltos nem repetições: " + (seqOk ? "OK" : "FALHA"));
             allOk &= wrongKey == 0 && seqOk;
-            total += recs.size();
             sum += recs.size();
 
             // réplicas que guardam a partição k
@@ -60,12 +60,18 @@ public class PartitionCheck {
                         + ", faltam " + (leader.size() - rl.size()));
                 allOk &= prefix;
             }
-            System.out.println("  réplicas que guardam a partição: " + r + (r == 2 ? " (R = 2: OK)" : " (esperado R = 2)"));
-            allOk &= r == 2;
+            System.out.println("  réplicas que guardam a partição: " + r
+                    + (r == rEsperado ? " (R = " + rEsperado + ": OK)" : " (esperado R = " + rEsperado + ")"));
+            allOk &= r == rEsperado;
+        }
+        // total do sistema contado à parte: todos os lider-p*.txt da pasta, seja qual for o N
+        try (DirectoryStream<Path> ds = Files.newDirectoryStream(dir, "lider-p*.txt")) {
+            for (Path f : ds) total += readLines(f).size();
         }
         System.out.println("== Total ==");
         System.out.println("  registos do sistema: " + total + ", soma das partições: " + sum
                 + (total == sum ? " (iguais)" : " (DIFERENTES)") + ", sensores distintos: " + allSensors.size());
+        allOk &= total == sum;
         System.out.println(allOk ? "RESULTADO: OK" : "RESULTADO: FALHA");
     }
 
