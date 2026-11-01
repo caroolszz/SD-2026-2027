@@ -3,6 +3,10 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/Repository.iml" filepath="$PROJECT_DIR$/.idea/Repository.iml" />
+      <module fileurl="file://$PROJECT_DIR$/Sprints/E1-COMINDIR02/rep02-lider/rep02-lider.iml" filepath="$PROJECT_DIR$/Sprints/E1-COMINDIR02/rep02-lider/rep02-lider.iml" />
+      <module fileurl="file://$PROJECT_DIR$/Sprints/E1-COMINDIR02/rep02-produtor/rep02-produtor.iml" filepath="$PROJECT_DIR$/Sprints/E1-COMINDIR02/rep02-produtor/rep02-produtor.iml" />
+      <module fileurl="file://$PROJECT_DIR$/Sprints/E1-COMINDIR02/rep02-replica/rep02-replica.iml" filepath="$PROJECT_DIR$/Sprints/E1-COMINDIR02/rep02-replica/rep02-replica.iml" />
+      <module fileurl="file://$PROJECT_DIR$/Sprints/E1-COMINDIR02/teste/teste.iml" filepath="$PROJECT_DIR$/Sprints/E1-COMINDIR02/teste/teste.iml" />
       <module fileurl="file://$PROJECT_DIR$/Sprints/E1-UDP01/udp01-cliente/udp01-cliente.iml" filepath="$PROJECT_DIR$/Sprints/E1-UDP01/udp01-cliente/udp01-cliente.iml" />
       <module fileurl="file://$PROJECT_DIR$/Sprints/E1-UDP01/udp01-servidor/udp01-servidor.iml" filepath="$PROJECT_DIR$/Sprints/E1-UDP01/udp01-servidor/udp01-servidor.iml" />
     </modules>
