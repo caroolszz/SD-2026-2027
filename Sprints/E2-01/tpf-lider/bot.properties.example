@@ -1,0 +1,4 @@
+# Copiar este ficheiro para "bot.properties" (que está no .gitignore) e preencher.
+# Em alternativa, definir as variáveis de ambiente DISCORD_TOKEN e DISCORD_GUILD_ID.
+token=COLAR_AQUI_O_TOKEN_DO_BOT
+guild.id=COLAR_AQUI_O_ID_DO_SERVIDOR
