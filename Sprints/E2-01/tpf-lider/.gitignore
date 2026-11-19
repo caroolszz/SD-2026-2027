@@ -1,0 +1,12 @@
+# Build
+target/
+
+# Segredos (NUNCA para o repositório)
+bot.properties
+.env
+master.key
+*.key
+
+# IDEs
+.idea/
+*.iml
