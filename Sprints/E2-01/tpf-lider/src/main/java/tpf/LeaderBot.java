@@ -20,6 +20,7 @@ import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import net.dv8tion.jda.api.interactions.commands.OptionMapping;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.Commands;
+import net.dv8tion.jda.api.interactions.commands.build.OptionData;
 import net.dv8tion.jda.api.interactions.commands.build.SubcommandData;
 import net.dv8tion.jda.api.requests.GatewayIntent;
 
@@ -105,38 +106,54 @@ public class LeaderBot extends ListenerAdapter {
      *
      * updateCommands() SUBSTITUI toda a lista de comandos do bot neste servidor pela
      * lista dada: comandos que já não estejam aqui desaparecem do Discord.
-     * Todos os parâmetros são STRING e a conversão para número é feita à mão
-     * (ver inteiro()), assim controlamos as mensagens de erro.
+     *
+     * Os tipos e limites são validados pelo PRÓPRIO DISCORD, na caixa de escrita:
+     * - OptionType.INTEGER: se o utilizador escrever "abc", pode escrever mas o Discord
+     *   não deixa enviar (o pedido nem chega ao bot → sem spam, sem conversões no código).
+     * - setMinValue(x): números abaixo de x também são bloqueados na inserção.
+     * - setMaxLength(x): textos maiores que x caracteres são bloqueados na inserção.
      */
     private static void registarComandos(Guild guild) {
         guild.updateCommands().addCommands(
-                // /registar texto:<string>   — o último argumento "true" = obrigatório
+                // /registar texto:<texto>   — o "true" = obrigatório; máx. 1500 caracteres
                 Commands.slash("registar", "Regista um texto no arquivo")
-                        .addOption(OptionType.STRING, "texto", "Texto a registar", true),
+                        .addOptions(new OptionData(OptionType.STRING, "texto", "Texto a registar", true)
+                                .setMaxLength(1500)),
 
                 // /estado   — sem argumentos
                 Commands.slash("estado", "Mostra o estado do arquivo"),
 
-                // /config r n:<string>   — "r" é um SUBCOMANDO (comando dentro do comando).
+                // /config r n:<inteiro >= 1>   — "r" é um SUBCOMANDO (comando dentro do comando).
                 // O argumento "n" pertence ao subcomando, não ao /config.
                 Commands.slash("config", "Configuração do arquivo (admin)")
                         .addSubcommands(new SubcommandData("r", "Define o número de réplicas")
-                                .addOption(OptionType.STRING, "n", "Número de réplicas (inteiro >= 1)", true)),
+                                .addOptions(new OptionData(OptionType.INTEGER, "n", "Número de réplicas (>= 1)", true)
+                                        .setMinValue(1))),
 
-                // /recuperar de:<string> ate:<string>
+                // /recuperar de:<inteiro >= 0> ate:<inteiro >= 0>
+                // (a regra de <= ate envolve DOIS campos, o Discord não a consegue verificar: fica no código)
                 Commands.slash("recuperar", "Recupera os registos num intervalo")
-                        .addOption(OptionType.STRING, "de", "Primeiro registo (inteiro >= 0)", true)
-                        .addOption(OptionType.STRING, "ate", "Último registo (inteiro >= de)", true),
+                        .addOptions(
+                                new OptionData(OptionType.INTEGER, "de", "Primeiro registo (>= 0)", true)
+                                        .setMinValue(0),
+                                new OptionData(OptionType.INTEGER, "ate", "Último registo (>= de)", true)
+                                        .setMinValue(0)),
 
                 Commands.slash("replica-token", "Gera um token para uma nova réplica (admin)"),
 
+                // /replica-remover id:<texto>   — máx. 64 caracteres
                 Commands.slash("replica-remover", "Remove uma réplica (admin)")
-                        .addOption(OptionType.STRING, "id", "Identificador da réplica", true),
+                        .addOptions(new OptionData(OptionType.STRING, "id", "Identificador da réplica", true)
+                                .setMaxLength(64)),
 
+                // /rajada n:<inteiro >= 1> intervalo_ms:<inteiro >= 0>
+                // Os nomes das opções no Discord têm de ser minúsculos: intervaloMs -> intervalo_ms
                 Commands.slash("rajada", "Envia uma rajada de registos de teste (admin)")
-                        .addOption(OptionType.STRING, "n", "Número de registos (inteiro >= 1)", true)
-                        // Os nomes das opções no Discord têm de ser minúsculos: intervaloMs -> intervalo_ms
-                        .addOption(OptionType.STRING, "intervalo_ms", "Intervalo entre registos em ms (inteiro >= 0)", true)
+                        .addOptions(
+                                new OptionData(OptionType.INTEGER, "n", "Número de registos (>= 1)", true)
+                                        .setMinValue(1),
+                                new OptionData(OptionType.INTEGER, "intervalo_ms", "Intervalo entre registos em ms (>= 0)", true)
+                                        .setMinValue(0))
         // queue(sucesso, erro): envia o pedido HTTP de forma assíncrona (não bloqueia)
         // e chama um dos dois callbacks quando o Discord responder.
         ).queue(
@@ -152,9 +169,10 @@ public class LeaderBot extends ListenerAdapter {
     /**
      * Chamado pela JDA sempre que alguém executa um slash command neste servidor.
      *
-     * Passos: (1) verificar permissões → (2) validar argumentos e montar a resposta
-     * → (3) responder. Qualquer erro de validação é lançado como
-     * IllegalArgumentException e tratado num único catch no fim.
+     * Passos: (0) só aceitar comandos no #arquivo → (1) verificar permissões
+     * → (2) ler os argumentos (já validados pelo Discord) e montar a resposta
+     * → (3) responder. Os erros que sobram (ex.: de > ate) são lançados como
+     * IllegalArgumentException e tratados num único catch no fim.
      *
      * IMPORTANTE: o Discord exige uma resposta (event.reply) em menos de 3 segundos,
      * senão o utilizador vê "A aplicação não respondeu". Por agora tudo é instantâneo;
@@ -166,6 +184,17 @@ public class LeaderBot extends ListenerAdapter {
         String autor = event.getUser().getName();
         // getFullCommandName inclui o subcomando, ex.: "config r"
         log.info("Comando /{} de {}", event.getFullCommandName(), autor);
+
+        // (0) Comandos só no #arquivo. Noutros canais o bot não executa nada.
+        //     O Discord OBRIGA a responder a todas as interações (senão o utilizador vê
+        //     "A aplicação não respondeu"), por isso damos um aviso efémero: só o autor
+        //     o vê, o canal não fica com mensagens do bot.
+        if (!CANAL_ARQUIVO.equals(event.getChannel().getName())) {
+            log.info("Comando /{} ignorado: canal #{}", event.getFullCommandName(), event.getChannel().getName());
+            event.reply("⛔ Os comandos só podem ser usados no #" + CANAL_ARQUIVO + ".")
+                    .setEphemeral(true).queue();
+            return;
+        }
 
         // (1) Controlo de acesso: se o comando é de admin e o autor não tem o papel,
         //     responde de forma "efémera" (só o autor vê) e sai com return.
@@ -192,12 +221,12 @@ public class LeaderBot extends ListenerAdapter {
                     if (!"r".equals(event.getSubcommandName())) {
                         throw new IllegalArgumentException("Subcomando desconhecido. Use /config r <n>.");
                     }
-                    long n = inteiro(event, "n", 1);   // nº de réplicas: mínimo 1
+                    long n = numero(event, "n");   // o Discord já garantiu: inteiro >= 1
                     yield "/config r recebido: n=" + n + NAO_IMPLEMENTADO;
                 }
                 case "recuperar" -> {
-                    long de = inteiro(event, "de", 0);   // índices começam em 0
-                    long ate = inteiro(event, "ate", 0);
+                    long de = numero(event, "de");     // já garantido: inteiro >= 0
+                    long ate = numero(event, "ate");
                     // Validação cruzada entre dois argumentos: o intervalo tem de fazer sentido.
                     if (de > ate) {
                         throw new IllegalArgumentException(
@@ -214,8 +243,8 @@ public class LeaderBot extends ListenerAdapter {
                     yield "/replica-remover recebido: id=" + id + NAO_IMPLEMENTADO;
                 }
                 case "rajada" -> {
-                    long n = inteiro(event, "n", 1);               // pelo menos 1 registo
-                    long intervalo = inteiro(event, "intervalo_ms", 0); // 0 = sem pausa
+                    long n = numero(event, "n");                    // já garantido: >= 1
+                    long intervalo = numero(event, "intervalo_ms"); // já garantido: >= 0 (0 = sem pausa)
                     yield "/rajada recebido: n=" + n + ", intervaloMs=" + intervalo + NAO_IMPLEMENTADO;
                 }
                 // Rede de segurança: um comando registado mas sem ramo aqui.
@@ -284,22 +313,16 @@ public class LeaderBot extends ListenerAdapter {
     }
 
     /**
-     * Lê um argumento e valida que é um inteiro >= min.
-     * Como as opções foram registadas como STRING, o utilizador pode escrever
-     * "abc" ou "-3"; aqui convertemos e damos mensagens de erro claras para cada caso.
+     * Lê uma opção INTEGER. Não há conversão nem validação de formato aqui:
+     * o Discord só deixa enviar o comando se o valor for um inteiro dentro do
+     * setMinValue definido em registarComandos(), e entrega-o já como número.
      */
-    private static long inteiro(SlashCommandInteractionEvent event, String nome, long min) {
-        String valor = textoObrigatorio(event, nome);
-        long n;
-        try {
-            n = Long.parseLong(valor);   // falha com NumberFormatException se não for número
-        } catch (NumberFormatException e) {
-            throw new IllegalArgumentException("'" + nome + "' tem de ser um número inteiro (recebido: \"" + valor + "\").");
+    private static long numero(SlashCommandInteractionEvent event, String nome) {
+        OptionMapping opt = event.getOption(nome);
+        if (opt == null) {   // não deve acontecer (opção obrigatória), mas fica a proteção
+            throw new IllegalArgumentException("O argumento '" + nome + "' é obrigatório.");
         }
-        if (n < min) {
-            throw new IllegalArgumentException("'" + nome + "' tem de ser >= " + min + " (recebido: " + n + ").");
-        }
-        return n;
+        return opt.getAsLong();
     }
 
     /**
