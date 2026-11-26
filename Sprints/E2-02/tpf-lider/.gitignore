@@ -1,0 +1,17 @@
+# Build
+target/
+
+# Segredos (NUNCA para o repositório)
+bot.properties
+.env
+master.key
+*.key
+
+# IDEs
+.idea/
+*.iml
+
+# Dados do líder (gerados em execução)
+registos.log
+eventos-lider.txt
+selados/
